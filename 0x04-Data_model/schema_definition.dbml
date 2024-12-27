@@ -1,0 +1,96 @@
+// Link to visualize schema: https://dbdiagram.io/d/676f31765406798ef7cae76c
+Table users {
+  id ObjectId [pk, unique]
+  name String
+  email String [unique]
+  password String
+  role String [note: "Values: 'Student', 'Faculty', 'Admin'"]
+  profile JSONB [note: "Embedded object with optional bio, interests, profile_picture, dob, contact"]
+  addresses JSONB [note: "Array of embedded objects with street, city, country"]
+  mfa_settings JSONB [note: "Embedded object with enabled flag and methods array"]
+  dashboards JSONB [note: "Embedded object with academic_progress, event_stats, mentorship_stats"]
+  confirmEmail Boolean
+  otp JSONB [note: "Embedded object with code and expiresAt"]
+  groups ObjectId[] [ref: > groups.id]
+
+  indexes {
+    email [unique, name: 'email_index']
+    groups [type: btree, note: 'Groups reference']
+  }
+}
+
+Table events {
+  id ObjectId [pk, unique]
+  title String 
+  description String
+  date_time DateTime 
+  location String
+  capacity Int [note: "Optional"]
+  creator ObjectId [ref: > users.id]
+  attendees ObjectId[] [ref: > users.id]
+  recommendations ObjectId[] [ref: > events.id]
+
+  indexes {
+    date_time [name: 'date_time_index']
+    (creator, date_time) [type: btree, note: 'Composite index on creator and date']
+  }
+}
+
+Table resources {
+  id ObjectId [pk, unique]
+  title String 
+  description String
+  uploaded_by ObjectId [ref: > users.id]
+  file_url String
+  tags String[] [note: "Optional"]
+  interactions JSONB [note: "Embedded array of interaction objects"]
+  created_at DateTime 
+  updated_at DateTime 
+
+  indexes {
+    created_at [name: 'created_at_index']
+    (tags, created_at) [type: btree, note: 'Composite index for tags and creation date']
+  }
+}
+
+Table mentorships {
+  id ObjectId [pk, unique]
+  mentor ObjectId [ref: > users.id]
+  mentees ObjectId[] [ref: > users.id]
+  sessions JSONB [note: "Embedded array of session objects"]
+
+  indexes {
+    mentor [name: 'mentor_index']
+  }
+}
+
+Table notifications {
+  id ObjectId [pk, unique]
+  user_id ObjectId [ref: > users.id]
+  type String 
+  content String
+  status String [note: "Values: 'read', 'unread'"]
+  timestamp DateTime 
+
+  indexes {
+    user_id [name: 'user_notifications_index']
+    (type, timestamp) [type: hash, note: 'Index for type and timestamp']
+  }
+}
+
+Table groups {
+  id ObjectId [pk, unique]
+  name String
+  description String
+  type String [note: "Enum: 'Direct', 'Official', 'Community'"]
+  image String [note: "Optional"]
+  creator ObjectId [ref: > users.id]
+  members ObjectId[] [ref: > users.id]
+  discussions JSONB [note: "Embedded array of discussion objects with replies"]
+
+  indexes {
+    name [name: 'group_name_index']
+    type [type: btree, note: 'Group type index']
+    (creator, type) [type: btree, note: 'Composite index for creator and type']
+  }
+}
