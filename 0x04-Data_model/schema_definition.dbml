@@ -1,3 +1,4 @@
+// link for schema to visual diagram: https://dbdiagram.io/d/676f31765406798ef7cae76c
 Table users {
   id ObjectId [pk, unique]
   name String
