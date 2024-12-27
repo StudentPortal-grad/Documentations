@@ -1,4 +1,3 @@
-// Link to visualize schema: https://dbdiagram.io/d/676f31765406798ef7cae76c
 Table users {
   id ObjectId [pk, unique]
   name String
@@ -79,7 +78,6 @@ Table notifications {
 }
 
 Table groups {
-  id ObjectId [pk, unique]
   name String
   description String
   type String [note: "Enum: 'Direct', 'Official', 'Community'"]
@@ -87,6 +85,7 @@ Table groups {
   creator ObjectId [ref: > users.id]
   members ObjectId[] [ref: > users.id]
   discussions JSONB [note: "Embedded array of discussion objects with replies"]
+  id ObjectId [pk, unique]
 
   indexes {
     name [name: 'group_name_index']
