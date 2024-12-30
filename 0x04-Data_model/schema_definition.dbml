@@ -5,7 +5,7 @@ Table users {
   name String
   email String [unique]
   password String
-  role String [note: "Values: 'Student', 'Faculty', 'Admin'"]
+  role String [note: "Global role: 'Student', 'Faculty', 'Admin'"]
   profile JSONB [note: "Embedded object with optional bio, interests, profile_picture, dob, contact"]
   addresses JSONB [note: "Array of embedded objects with street, city, country"]
   friends JSONB [note: "Array of friend objects with references to users and DMs (MessageId, newest first)"]
@@ -16,7 +16,8 @@ Table users {
   dashboards JSONB [note: "Embedded object with academic_progress, event_stats"]
   confirmEmail Boolean
   otp JSONB [note: "Embedded object with code and expiresAt"]
-  groups ObjectId[] [ref: > groups.id]
+  roles JSONB [note: "Array of community-specific roles"]
+  status String [note: "Values: 'online', 'offline'"]
   createdAt DateTime
   updatedAt DateTime
 
@@ -79,9 +80,10 @@ Table communities {
   name String
   description String
   type String [note: "Enum: 'Official', 'Community'"]
-  image String [note: "Optional"]
+  icon String [note: "Optional community icon"]
   owner ObjectId [ref: > users.id]
-  members ObjectId[] [ref: > users.id]
+  members JSONB [note: "Array of member objects with user_id and role_ids"]
+  roles ObjectId[] [ref: > roles.id]
   discussions ObjectId[] [ref: > discussions.id]
   createdAt DateTime
   updatedAt DateTime
@@ -92,9 +94,24 @@ Table communities {
   }
 }
 
+Table roles {
+  id ObjectId [pk, unique]
+  name String [note: "Name of the role, e.g., 'Admin', 'Moderator'"]
+  communityId ObjectId [ref: > communities.id]
+  color Int [note: "Color code for the role"]
+  permissions Int [note: "Bitwise integer representing permissions"]
+  mentionable Boolean [note: "Whether the role is mentionable in discussions"]
+  createdAt DateTime
+
+  indexes {
+    communityId [name: 'community_roles_index']
+    name [name: 'role_name_index']
+  }
+}
+
+
 Table discussions {
   id ObjectId [pk, unique]
-  communityId ObjectId [ref: > communities.id]
   title String
   content String
   creator ObjectId [ref: > users.id]
@@ -102,12 +119,14 @@ Table discussions {
   replies JSONB [note: "Embedded array of reply objects"]
   createdAt DateTime
   updatedAt DateTime
+  communityId ObjectId [ref: > communities.id]
 
   indexes {
     communityId [name: 'community_discussion_index']
     createdAt [name: 'discussion_created_at_index']
   }
 }
+/*
 // Embedded Attachment Structure in Discussions
 attachments: [
   {
@@ -130,6 +149,7 @@ replies: [
     ]
   }
 ]
+*/
 
 Table conversations {
   id ObjectId [pk, unique]
@@ -158,6 +178,7 @@ Table messages {
     senderId [name: 'message_sender_index']
   }
 }
+/*
 // Embedded Attachment Structure in Messages
 attachments: [
   {
@@ -166,3 +187,4 @@ attachments: [
     thread: ObjectId [ref: > conversations.id, note: "Reference for thread type attachments"]
   }
 ]
+*/
