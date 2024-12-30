@@ -47,6 +47,7 @@ Table events {
   creator ObjectId [ref: > users.id]
   attendees ObjectId[] [ref: > users.id]
   recommendations ObjectId[] [ref: > events.id]
+  status String [note: "Values: 'upcoming', 'ongoing', 'completed'"]
 
   indexes {
     date_time [name: 'date_time_index']
@@ -79,6 +80,7 @@ Table notifications {
   content String
   status String [note: "Values: 'read', 'unread'"]
   timestamp DateTime 
+  metadata JSONB [note: "Additional metadata for the notification (e.g., event_id, resource_id)"]
 
   indexes {
     user_id [name: 'user_notifications_index']
@@ -132,6 +134,7 @@ Table discussions {
   createdAt DateTime
   updatedAt DateTime
   communityId ObjectId [ref: > communities.id]
+  status String [note: "Values: 'open', 'closed', 'archived'"]
 
   indexes {
     communityId [name: 'community_discussion_index']
@@ -171,6 +174,7 @@ Table conversations {
   createdBy ObjectId [ref: > users.id]
   inviteLink String [note: "Optional invite link for GroupDMs"]
   messages ObjectId[] [note: "References to MessageId, newest first"]
+  status String [note: "Values: 'active', 'archived'"]
   createdAt DateTime
   updatedAt DateTime
 
@@ -185,6 +189,7 @@ Table messages {
   senderId ObjectId [ref: > users.id]
   content String
   attachments JSONB [note: "Array of attachment objects"]
+  status String [note: "Values: 'sent', 'delivered', 'read'"]
   createdAt DateTime
 
   indexes {
