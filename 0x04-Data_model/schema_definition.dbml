@@ -1,4 +1,5 @@
 // link for schema to visual diagram: https://dbdiagram.io/d/676f31765406798ef7cae76c
+
 Table users {
   id ObjectId [pk, unique]
   name String
@@ -7,15 +8,20 @@ Table users {
   role String [note: "Values: 'Student', 'Faculty', 'Admin'"]
   profile JSONB [note: "Embedded object with optional bio, interests, profile_picture, dob, contact"]
   addresses JSONB [note: "Array of embedded objects with street, city, country"]
+  friends JSONB [note: "Array of friend objects with references to users and DMs (MessageId, newest first)"]
+  level Int [note: "Enum: 1, 2, 3, 4, 5 (5 => graduated)"]
+  gpa Float
+  universityEmail String
   mfa_settings JSONB [note: "Embedded object with enabled flag and methods array"]
-  dashboards JSONB [note: "Embedded object with academic_progress, event_stats, mentorship_stats"]
+  dashboards JSONB [note: "Embedded object with academic_progress, event_stats"]
   confirmEmail Boolean
   otp JSONB [note: "Embedded object with code and expiresAt"]
   groups ObjectId[] [ref: > groups.id]
+  createdAt DateTime
+  updatedAt DateTime
 
   indexes {
     email [unique, name: 'email_index']
-    groups [type: btree, note: 'Groups reference']
   }
 }
 
@@ -53,16 +59,6 @@ Table resources {
   }
 }
 
-Table mentorships {
-  id ObjectId [pk, unique]
-  mentor ObjectId [ref: > users.id]
-  mentees ObjectId[] [ref: > users.id]
-  sessions JSONB [note: "Embedded array of session objects"]
-
-  indexes {
-    mentor [name: 'mentor_index']
-  }
-}
 
 Table notifications {
   id ObjectId [pk, unique]
@@ -78,19 +74,95 @@ Table notifications {
   }
 }
 
-Table groups {
+Table communities {
+  id ObjectId [pk, unique]
   name String
   description String
-  type String [note: "Enum: 'Direct', 'Official', 'Community'"]
+  type String [note: "Enum: 'Official', 'Community'"]
   image String [note: "Optional"]
-  creator ObjectId [ref: > users.id]
+  owner ObjectId [ref: > users.id]
   members ObjectId[] [ref: > users.id]
-  discussions JSONB [note: "Embedded array of discussion objects with replies"]
-  id ObjectId [pk, unique]
+  discussions ObjectId[] [ref: > discussions.id]
+  createdAt DateTime
+  updatedAt DateTime
 
   indexes {
-    name [name: 'group_name_index']
-    type [type: btree, note: 'Group type index']
-    (creator, type) [type: btree, note: 'Composite index for creator and type']
+    name [name: 'community_name_index']
+    type [name: 'community_type_index']
   }
 }
+
+Table discussions {
+  id ObjectId [pk, unique]
+  communityId ObjectId [ref: > communities.id]
+  title String
+  content String
+  creator ObjectId [ref: > users.id]
+  attachments JSONB [note: "Array of attachment objects"]
+  replies JSONB [note: "Embedded array of reply objects"]
+  createdAt DateTime
+  updatedAt DateTime
+
+  indexes {
+    communityId [name: 'community_discussion_index']
+    createdAt [name: 'discussion_created_at_index']
+  }
+}
+// Embedded Attachment Structure in Discussions
+attachments: [
+  {
+    type: String [note: "Values: 'document', 'file', 'poll', etc."],
+    resource: String [note: "Link to the resource, e.g., a file or media"]
+  }
+]
+// Embedded Reply Structure in Discussions
+replies: [
+  {
+    id: ObjectId [pk, unique],
+    content: String,
+    creator: ObjectId [ref: > users.id],
+    createdAt: DateTime,
+    attachments: [
+      {
+        type: String [note: "Values: 'document', 'file', etc."],
+        resource: String [note: "Link to the resource"]
+      }
+    ]
+  }
+]
+
+Table conversations {
+  id ObjectId [pk, unique]
+  type String [note: "Values: 'DM', 'GroupDM'"]
+  participants ObjectId[] [note: "List of UserIds in the conversation"]
+  name String [note: "Optional, used for GroupDMs"]
+  createdBy ObjectId [ref: > users.id]
+  messages ObjectId[] [note: "References to MessageId, newest first"]
+  createdAt DateTime
+  updatedAt DateTime
+
+  indexes {
+    type [name: 'conversation_type_index']
+    participants [type: btree, name: 'participants_index']
+  }
+}
+
+Table messages {
+  id ObjectId [pk, unique]
+  senderId ObjectId [ref: > users.id]
+  content String
+  attachments JSONB [note: "Array of attachment objects"]
+  createdAt DateTime
+
+  indexes {
+    senderId [name: 'message_sender_index']
+  }
+}
+// Embedded Attachment Structure in Messages
+attachments: [
+  {
+    type: String [note: "Values: 'document', 'file', 'poll', 'thread', etc."],
+    resource: String [note: "Link to the resource, e.g., a file or document"],
+    thread: ObjectId [ref: > conversations.id, note: "Reference for thread type attachments"]
+  }
+]
