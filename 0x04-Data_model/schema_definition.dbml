@@ -25,6 +25,17 @@ Table users {
     email [unique, name: 'email_index']
   }
 }
+/*
+// Embedded Friends Structure in Users
+friends: [
+    {
+      friend ObjectId, 
+      dm [ObjectId],   // Array of message IDs in the DM conversation (newest first)
+      status [note: "Enum: accepted|pending"], 
+      addedAt DateTime
+    }
+  ]
+*/
 
 Table events {
   id ObjectId [pk, unique]
@@ -85,6 +96,7 @@ Table communities {
   members JSONB [note: "Array of member objects with user_id and role_ids"]
   roles ObjectId[] [ref: > roles.id]
   discussions ObjectId[] [ref: > discussions.id]
+  inviteLink String [note: "Optional invite link for the community"]
   createdAt DateTime
   updatedAt DateTime
 
@@ -157,6 +169,7 @@ Table conversations {
   participants ObjectId[] [note: "List of UserIds in the conversation"]
   name String [note: "Optional, used for GroupDMs"]
   createdBy ObjectId [ref: > users.id]
+  inviteLink String [note: "Optional invite link for GroupDMs"]
   messages ObjectId[] [note: "References to MessageId, newest first"]
   createdAt DateTime
   updatedAt DateTime
