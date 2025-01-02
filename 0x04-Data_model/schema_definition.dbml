@@ -1,4 +1,4 @@
-// link for schema to visual diagram: https://dbdiagram.io/d/676f31765406798ef7cae76c
+// link for schema to visual diagram: https://dbdiagram.io/d/Student-Portal-676f31765406798ef7cae76c
 
 Table users {
   id ObjectId [pk, unique]
@@ -17,7 +17,7 @@ Table users {
   confirmEmail Boolean
   otp JSONB [note: "Embedded object with code and expiresAt"]
   roles JSONB [note: "Array of community-specific roles"]
-  status String [note: "Values: 'online', 'offline'"]
+  status String [note: "Values: 'online', 'offline', 'idle', 'dnd'"]
   createdAt DateTime
   updatedAt DateTime
 
@@ -25,53 +25,91 @@ Table users {
     email [unique, name: 'email_index']
   }
 }
-/*
-// Embedded Friends Structure in Users
-friends: [
-    {
-      friend ObjectId, 
-      dm [ObjectId],   // Array of message IDs in the DM conversation (newest first)
-      status [note: "Enum: accepted|pending"], 
-      addedAt DateTime
-    }
-  ]
-*/
 
 Table events {
   id ObjectId [pk, unique]
-  title String 
+  title String
   description String
-  date_time DateTime 
+  dateTime DateTime
   location String
-  capacity Int [note: "Optional"]
-  creator ObjectId [ref: > users.id]
-  attendees ObjectId[] [ref: > users.id]
-  recommendations ObjectId[] [ref: > events.id]
-  status String [note: "Values: 'upcoming', 'ongoing', 'completed'"]
+  capacity Number [note: "Optional, for limiting attendees"]
+  visibility String [note: "Enum('public', 'private', 'community'), Visibility level of the event"]
+  attendees ObjectId[] [ref: > RSVPs.id, note: "References RSVPs collection"]
+  creatorId ObjectId [ref: > users.id, note: "User who created the event"]
+  status String [note: "Enum('upcoming', 'ongoing', 'completed', 'cancelled'), Event lifecycle status"]
+  recommendations ObjectId[] [ref: > events.id, note: "Related events for suggestions"]
+  communityId ObjectId [ref: > communities.id, note: "Community hosting the event"]
+  createdAt DateTime
+  updatedAt DateTime
 
   indexes {
-    date_time [name: 'date_time_index']
-    (creator, date_time) [type: btree, note: 'Composite index on creator and date']
+    dateTime [name: 'event_date_time_index']
+    (communityId, visibility) [name: 'community_event_visibility_index']
+    creatorId [name: 'event_creator_index']
   }
 }
 
-Table resources {
+Table RSVPs {
+  eventId ObjectId [ref: > events.id]
   id ObjectId [pk, unique]
-  title String 
-  description String
-  uploaded_by ObjectId [ref: > users.id]
-  file_url String
-  tags String[] [note: "Optional"]
-  interactions JSONB [note: "Embedded array of interaction objects"]
-  created_at DateTime 
-  updated_at DateTime 
+  userId ObjectId [ref: > users.id]
+  status String [note: "Enum('attending', 'not_attending', 'interested'), RSVP status"]
+  createdAt DateTime
+  updatedAt DateTime
 
   indexes {
-    created_at [name: 'created_at_index']
-    (tags, created_at) [type: btree, note: 'Composite index for tags and creation date']
+    (eventId, userId) [note: "unique: true, name: 'event_user_rsvp_index'"]
   }
 }
 
+Table Resources {
+  id ObjectId [pk, unique]
+  title String
+  description String
+  fileUrl String
+  tags String[]
+  visibility String [note: "Enum('public', 'private', 'community')"]
+  communityId ObjectId [ref: > communities.id, note: "Optional, only for community visibility"]
+  category String [note: "Enum('Engineering', 'Design', 'Technology', 'Software', 'Other'), Proposed category, can be extended or replaced with ObjectId(categoryId)"]
+  interactions JSONB [note: "Embedded interactions object. See 'Interactions Structure' for details."]
+  uploaderId ObjectId [ref: > users.id]
+  createdAt DateTime
+  updatedAt DateTime
+
+  indexes {
+    tags [name: 'tags_index']
+    uploaderId [name: 'uploader_index']
+    (communityId, visibility) [name: 'community_visibility_index']
+  }
+}
+/*
+// Embedded Interactions Structure in Resources
+interactions: {
+  downloads: Number [note: "Count of downloads"],
+  ratings: [
+    {
+      userId: ObjectId [ref: > Users.id],
+      rating: Number [note: "Values: 1-5"],
+      createdAt: DateTime
+    }
+  ],
+  comments: [
+    {
+      id: ObjectId [pk, unique],
+      userId: ObjectId [ref: > Users.id],
+      content: String,
+      createdAt: DateTime,
+      attachments: [
+        {
+          type: String [note: "Values: 'document', 'image', etc."],
+          resource: String [note: "Link to the resource"],
+          additionalInfo: String [note: "Optional metadata"]
+        }
+      ]
+    }
+  ]
+}
+*/
 
 Table notifications {
   id ObjectId [pk, unique]
@@ -89,12 +127,12 @@ Table notifications {
 }
 
 Table communities {
+  owner ObjectId [ref: > users.id]
   id ObjectId [pk, unique]
   name String
   description String
   type String [note: "Enum: 'Official', 'Community'"]
   icon String [note: "Optional community icon"]
-  owner ObjectId [ref: > users.id]
   members JSONB [note: "Array of member objects with user_id and role_ids"]
   roles ObjectId[] [ref: > roles.id]
   discussions ObjectId[] [ref: > discussions.id]
@@ -109,9 +147,9 @@ Table communities {
 }
 
 Table roles {
+  communityId ObjectId [ref: > communities.id]
   id ObjectId [pk, unique]
   name String [note: "Name of the role, e.g., 'Admin', 'Moderator'"]
-  communityId ObjectId [ref: > communities.id]
   color Int [note: "Color code for the role"]
   permissions Int [note: "Bitwise integer representing permissions"]
   mentionable Boolean [note: "Whether the role is mentionable in discussions"]
@@ -125,16 +163,17 @@ Table roles {
 
 
 Table discussions {
+  communityId ObjectId [ref: > communities.id]
   id ObjectId [pk, unique]
   title String
   content String
   creator ObjectId [ref: > users.id]
   attachments JSONB [note: "Array of attachment objects"]
   replies JSONB [note: "Embedded array of reply objects"]
+  status String [note: "Values: 'open', 'closed', 'archived'"]
+
   createdAt DateTime
   updatedAt DateTime
-  communityId ObjectId [ref: > communities.id]
-  status String [note: "Values: 'open', 'closed', 'archived'"]
 
   indexes {
     communityId [name: 'community_discussion_index']
@@ -165,16 +204,16 @@ replies: [
   }
 ]
 */
-
 Table conversations {
   id ObjectId [pk, unique]
   type String [note: "Values: 'DM', 'GroupDM'"]
   participants ObjectId[] [note: "List of UserIds in the conversation"]
   name String [note: "Optional, used for GroupDMs"]
   createdBy ObjectId [ref: > users.id]
-  inviteLink String [note: "Optional invite link for GroupDMs"]
   messages ObjectId[] [note: "References to MessageId, newest first"]
+  inviteLink String [note: "Optional invite link for GroupDMs"]
   status String [note: "Values: 'active', 'archived'"]
+
   createdAt DateTime
   updatedAt DateTime
 
